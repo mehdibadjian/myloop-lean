@@ -9,6 +9,7 @@ SKILLS_DIR = REPO_ROOT / ".agents" / "skills"
 RULES_DIR = REPO_ROOT / ".agents" / "rules"
 
 EXPECTED_SKILLS = [
+    "grill-me",
     "deep-recon",
     "prd",
     "architecture",
