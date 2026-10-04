@@ -2,6 +2,7 @@
 """myloop-lean: Deterministic sprint status ledger manager, anti-cheat gate, and incident trigger."""
 
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -387,6 +388,16 @@ def main():
     chain_p = subparsers.add_parser("validate-chain", help="Validate three-stage artifact chain for a story")
     chain_p.add_argument("story_dir", help="Path to story directory containing intent.md, spec.md, plan.md")
 
+    # dispatch
+    disp_p = subparsers.add_parser("dispatch", help="Dispatch story to heterogeneous models")
+    disp_p.add_argument("story_key", help="Key of the story to dispatch")
+    disp_p.add_argument("--persona", default="developer", help="Persona to dispatch (e.g. developer, reviewer)")
+    disp_p.add_argument("--skill", default=None, help="Target skill to bundle")
+    disp_p.add_argument("--provider", default=None, help="Provider override (deepseek, qwen, openai, local)")
+    disp_p.add_argument("--model", default=None, help="Model override")
+    disp_p.add_argument("--dry-run", action="store_true", help="Print request payload as JSON without sending")
+    disp_p.add_argument("--export", default=None, help="Export compiled payload to file")
+
     args = parser.parse_args()
 
     ledger_path = Path(args.ledger)
@@ -456,6 +467,58 @@ def main():
         else:
             print(f"Artifact chain incomplete! Missing: {res['missing_artifacts']}", file=sys.stderr)
             sys.exit(1)
+
+    elif args.command == "dispatch":
+        from dispatch import ProviderRegistry, compile_prompt_context, OpenAICompatibleClient
+        work_dir = Path.cwd()
+        ledger = SprintLedger(ledger_path) if ledger_path.exists() else None
+        tier = ledger.get_tier(args.story_key) if ledger else "flash"
+        registry = ProviderRegistry()
+        provider, model, base_url = registry.resolve(
+            persona=args.persona,
+            tier=tier,
+            provider_override=args.provider,
+            model_override=args.model,
+        )
+        skill = args.skill
+        if not skill:
+            if args.persona in ["developer"]:
+                skill = "build"
+            elif args.persona in ["reviewer"]:
+                skill = "code-review"
+        context = compile_prompt_context(
+            workspace_root=work_dir,
+            story_key=args.story_key,
+            persona=args.persona,
+            skill_name=skill,
+        )
+        api_key_env_map = {
+            "deepseek": "DEEPSEEK_API_KEY",
+            "openai": "OPENAI_API_KEY",
+            "qwen": "DASHSCOPE_API_KEY",
+            "gemini": "GEMINI_API_KEY",
+        }
+        api_key = os.environ.get(api_key_env_map.get(provider, "OPENAI_API_KEY"), "")
+        client = OpenAICompatibleClient(base_url=base_url, api_key=api_key)
+        payload = client.format_payload(
+            model=model,
+            system_prompt=context["system_prompt"],
+            user_message=context["user_message"],
+        )
+        if args.export:
+            export_path = Path(args.export)
+            export_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+            print(f"Payload exported to {export_path}")
+        if args.dry_run:
+            print(json.dumps(payload, indent=2))
+            sys.exit(0)
+        if not api_key and provider != "local":
+            print(f"Error: API key for provider '{provider}' not set in environment.", file=sys.stderr)
+            sys.exit(1)
+        print(f"Dispatching story '{args.story_key}' to provider '{provider}' (model: {model})...")
+        res = client.send_completion(payload)
+        content = res.get("choices", [{}])[0].get("message", {}).get("content", "")
+        print(content)
 
 
 if __name__ == "__main__":
