@@ -80,3 +80,60 @@ def test_scaffold_cli(tmp_path):
     assert proc.returncode == 0, f"scaffold CLI failed: {proc.stderr}"
     assert (target_dir / "sprint-status.yaml").exists()
     assert (target_dir / ".agents" / "rules").exists()
+
+
+def test_clean_template_repository(tmp_path):
+    """Scenario: Cleaning a freshly cloned template repository."""
+    repo_dir = tmp_path / "cloned-template"
+    # First scaffold complete structure
+    scaffold.scaffold_project(REPO_ROOT, repo_dir, project_name="Legacy Name")
+    # Simulate old docs
+    (repo_dir / "docs" / "SPEC_MYLOOP_LEAN.md").write_text("old spec", encoding="utf-8")
+    (repo_dir / "docs" / "stories" / "1-1-old.md").write_text("old story", encoding="utf-8")
+    (repo_dir / "README.md").write_text("# Old MyLoop README", encoding="utf-8")
+
+    res = scaffold.clean_repository(repo_dir, project_name="Fresh Application")
+    assert res["success"] is True
+
+    # Check that old docs files are removed
+    assert not (repo_dir / "docs" / "SPEC_MYLOOP_LEAN.md").exists()
+    assert not (repo_dir / "docs" / "stories" / "1-1-old.md").exists()
+
+    # Check that directory structure is preserved with .gitkeep
+    assert (repo_dir / "docs" / "stories").is_dir()
+    assert (repo_dir / "docs" / "prd").is_dir()
+
+    # Check clean starter README and sprint ledger
+    readme_text = (repo_dir / "README.md").read_text(encoding="utf-8")
+    assert "# Fresh Application" in readme_text
+    assert "Autonomous Loop" in readme_text
+
+    ledger_text = (repo_dir / "sprint-status.yaml").read_text(encoding="utf-8")
+    assert "project: Fresh Application" in ledger_text
+    assert "1-1-initial-setup: ready-for-dev" in ledger_text
+
+
+def test_clean_cli(tmp_path):
+    """Scenario: Running clean via CLI."""
+    repo_dir = tmp_path / "cloned-cli"
+    scaffold.scaffold_project(REPO_ROOT, repo_dir, project_name="Old")
+
+    cmd = [
+        sys.executable,
+        str(SCRIPTS_DIR / "scaffold.py"),
+        "--clean",
+        "--project",
+        "CLI Clean App",
+    ]
+    proc = subprocess.run(
+        cmd,
+        cwd=str(repo_dir),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+    assert proc.returncode == 0, f"clean CLI failed: {proc.stderr}"
+    ledger_text = (repo_dir / "sprint-status.yaml").read_text(encoding="utf-8")
+    assert "project: CLI Clean App" in ledger_text
+

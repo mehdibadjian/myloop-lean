@@ -32,6 +32,74 @@ execution_tiers:
 action_items: []
 """
 
+STARTER_README = """# {project_name}
+
+A software project driven by Kent Beck TDD, multi-model agent personas, and a closed-loop SDLC.
+
+## Autonomous Loop Quickstart
+
+### 1. Pre-Flight Grill (Gate 0)
+Resolve design trade-offs and clarify system requirements before coding:
+```bash
+/grill-me
+```
+
+### 2. Fetch Next Ready Story
+```bash
+python3 scripts/sprint.py next
+```
+
+### 3. Verify Implementation (Kent Beck TDD + Anti-Cheat)
+```bash
+python3 scripts/sprint.py verify --cmd "python3 -m pytest tests/" --anti-cheat
+```
+
+### 4. Sprint Status Board
+```bash
+python3 scripts/sprint.py status
+```
+
+## Multi-Model Dispatch
+Dispatch tasks to DeepSeek, Qwen, Gemini, or local models:
+```bash
+python3 scripts/sprint.py dispatch <story_key> --persona developer --dry-run
+```
+"""
+
+
+def clean_repository(repo_dir: Path, project_name: str = "My Project") -> Dict[str, Any]:
+    """Resets a freshly cloned template repository for a new application."""
+    repo_dir = Path(repo_dir).resolve()
+
+    # 1. Reset sprint-status.yaml
+    ledger_path = repo_dir / "sprint-status.yaml"
+    ledger_path.write_text(STARTER_SPRINT_YAML.format(project_name=project_name), encoding="utf-8")
+
+    # 2. Reset README.md
+    readme_path = repo_dir / "README.md"
+    readme_path.write_text(STARTER_README.format(project_name=project_name), encoding="utf-8")
+
+    # 3. Clean docs/ while preserving folder hierarchy with .gitkeep
+    docs_dir = repo_dir / "docs"
+    if docs_dir.exists():
+        for item in docs_dir.iterdir():
+            if item.is_file():
+                item.unlink()
+            elif item.is_dir():
+                shutil.rmtree(item)
+
+    for sub in ["stories", "prd", "architecture", "retrospectives"]:
+        sub_dir = docs_dir / sub
+        sub_dir.mkdir(parents=True, exist_ok=True)
+        gitkeep = sub_dir / ".gitkeep"
+        gitkeep.touch()
+
+    return {
+        "success": True,
+        "repo_dir": str(repo_dir),
+        "project_name": project_name,
+    }
+
 
 def scaffold_project(
     source_root: Path,
@@ -131,6 +199,11 @@ def main():
         help="Name of the project to initialize in sprint ledger",
     )
     parser.add_argument(
+        "--clean",
+        action="store_true",
+        help="Clean a cloned template repo (wipes old docs/stories, resets README.md & sprint-status.yaml)",
+    )
+    parser.add_argument(
         "--global-antigravity",
         action="store_true",
         help="Also install skills and rules into ~/.gemini/antigravity-cli/",
@@ -139,6 +212,15 @@ def main():
     args = parser.parse_args()
     source_root = Path(__file__).resolve().parent.parent
     target_path = Path(args.target_dir)
+
+    if args.clean:
+        print(f"Cleaning template repository at '{target_path.resolve()}' for '{args.project}'...")
+        res = clean_repository(target_path, project_name=args.project)
+        print("Template repository cleaned successfully:")
+        print(f"  + Reset sprint-status.yaml for '{res['project_name']}'")
+        print("  + Generated clean starter README.md")
+        print("  + Wiped old docs/stories/retrospectives while preserving folder structure")
+        sys.exit(0)
 
     print(f"Scaffolding myloop-lean into '{target_path.resolve()}'...")
     res = scaffold_project(
