@@ -128,6 +128,45 @@ Run the full Behavior-Driven Development (BDD) test suite:
 python3 -m pytest tests/ -v
 ```
 
+## Reusing `myloop-lean` in Future Repositories
+
+You can easily instantiate or embed `myloop-lean` into any existing or new project using 4 methods:
+
+### Method 1: Turn into a GitHub Template (1-Click for New Repos)
+1. On GitHub, navigate to **`https://github.com/mehdibadjian/myloop-lean/settings`**.
+2. Under **General**, check the box **"Template repository"**.
+3. When creating any new repository on GitHub, choose **`mehdibadjian/myloop-lean`** under **"Repository template"**.
+4. Every new repo starts with the lean BDD architecture, `.agents` skills, rules, and sprint tooling pre-configured.
+
+### Method 2: CLI Scaffolder (`scripts/scaffold.py`)
+To inject `myloop-lean` into an existing local project or a new folder:
+```bash
+# Scaffold into an existing repository:
+python3 scripts/scaffold.py /path/to/my-future-project --project "Payment Service"
+```
+This automatically copies:
+- `.agents/rules/` and `.agents/skills/`
+- `scripts/sprint.py` and `scripts/dispatch.py`
+- `AGENTS.md` and `GEMINI.md`
+- Starter `sprint-status.yaml` and `docs/` hierarchy
+
+### Method 3: Global Antigravity Installation
+Make all skills (`grill-me`, `build`, `code-review`, etc.) and rules available globally in every project you open in Antigravity:
+```bash
+python3 scripts/scaffold.py --global-antigravity
+```
+Installs directly to `~/.gemini/antigravity-cli/skills/` and `~/.gemini/antigravity-cli/rules/`.
+
+### Method 4: Git Subtree (Receive Upstream Skill & Rule Updates)
+If you want future repos to track updates made to `myloop-lean`:
+```bash
+# In your target repo:
+git subtree add --prefix=.agents https://github.com/mehdibadjian/myloop-lean.git main --squash
+
+# Pull skill and rule updates in the future:
+git subtree pull --prefix=.agents https://github.com/mehdibadjian/myloop-lean.git main --squash
+```
+
 ---
 
 ## License
