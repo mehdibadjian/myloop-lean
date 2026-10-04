@@ -97,6 +97,7 @@ The `scripts/sprint.py` CLI provides:
 ## 4. Consolidated Skills Specification
 
 ### 4.1 Skill Taxonomy
+0. **`grill-me`:** Relentless pre-flight adversarial grill session and design-tree interview combining the Fortress Architect vs. Velocity King duel with frontier round-based interrogation.
 1. **`deep-recon`:** Synthesizes technical, domain, and competitive research into cited decision briefs.
 2. **`prd`:** Creates customer-focused PRDs with user journeys, non-functional requirements, and testable acceptance criteria.
 3. **`architecture`:** Defines the architectural spine—fixing durable invariants (design paradigms, data boundaries, state mutations) and ADRs.

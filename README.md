@@ -84,10 +84,11 @@ python3 scripts/sprint.py verify --cmd "python3 -m pytest tests/"
 
 ---
 
-## The 8 Consolidated Skills
+## The Consolidated Skills
 
 | Skill | Role | Key Outcome |
 |---|---|---|
+| **`grill-me`** | Pre-Flight Grill | Adversarial Duel (Fortress vs. Velocity) & frontier design-tree interrogation. |
 | **`deep-recon`** | Research & Spikes | Decision-grade briefs with verified citations. |
 | **`prd`** | Product Definition | JTBD requirements with Given/When/Then acceptance criteria. |
 | **`architecture`** | System Design | Architecture spine fixing invariants and ADRs. |

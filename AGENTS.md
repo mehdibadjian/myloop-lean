@@ -8,6 +8,8 @@ When operating in autonomous or pair programming mode, instantiate these persona
 
 | Persona | Role | Default Tier / Model | Recommended Subagent Workspace |
 |---|---|---|---|
+| **Fortress Architect** | Scale & security interrogation (`grill-me`) | `pro` / DeepSeek-R1 | `inherit` |
+| **Velocity King** | Scope pruning & MVP triage (`grill-me`) | `flash` / Qwen 2.5 Coder | `inherit` |
 | **Architect** | Invariant enforcement, system design, ADRs | `pro` / DeepSeek-R1 | `inherit` |
 | **Developer** | Test-driven implementation, clean commits | `flash` / Qwen 2.5 Coder | `branch` |
 | **Reviewer** | Multi-lens adversarial code review | `pro` / DeepSeek-R1 | `inherit` (read-only) |
@@ -17,6 +19,7 @@ When operating in autonomous or pair programming mode, instantiate these persona
 ## 2. Autonomous Loop Pattern
 
 When autonomous execution is requested:
+0. **Pre-Flight Grill (Gate 0)**: Run `/grill-me` (or invoke `grill-me` skill) to resolve the design tree frontier before PRD/architecture.
 1. **Fetch Next Story**: Run `python3 scripts/sprint.py next`.
 2. **Dispatch Implementation**: Invoke the Developer subagent on the story specification with TDD discipline.
 3. **Run Verification Gate**: Execute `python3 scripts/sprint.py verify --cmd "python3 -m pytest tests/"`.
