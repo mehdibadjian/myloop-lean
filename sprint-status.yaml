@@ -8,7 +8,7 @@ story_location: docs/stories
 development_status:
   epic-1: in-progress
   1-1-lean-core-orchestration: done
-  1-2-model-agnostic-dispatch: review
+  1-2-model-agnostic-dispatch: done
   epic-1-retrospective: optional
 
 execution_tiers:

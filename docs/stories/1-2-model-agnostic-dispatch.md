@@ -1,7 +1,7 @@
 # Story 1-2: Model-Agnostic Dispatch
 
 ## Status
-- **Status:** in-progress
+- **Status:** done
 - **Tier:** pro
 - **Epic:** epic-1
 
