@@ -21,6 +21,6 @@ Conduct a data-driven retrospective upon completing an epic, measure verificatio
 - Identify any gaps where criteria were claimed "done" without automated tests.
 
 ### 3. Rule Refinement & Continuous Learning
-- Identify recurring issues or friction points.
-- Codify lessons learned directly into `.agents/rules/` or project guidelines.
+- Identify recurring issues, verification gaps, or developer friction points.
+- Codify lessons learned directly into `.agents/rules/lessons-learned.md` so future agent sessions automatically inherit them.
 - Close the epic in `sprint-status.yaml` by marking `<epic-key>: done` and `<epic-key>-retrospective: done`.

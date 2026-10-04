@@ -2,17 +2,18 @@
 
 > A lean, model-agnostic agent lifecycle orchestrator and BDD framework for modern AI pair programming. Optimized for Gemini 3.8 / Pro, DeepSeek-R1 / V3, Qwen 2.5 Coder, Claude, and open coding harnesses.
 
-[![Tests](https://img.shields.io/badge/tests-12%20passed-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-18%20passed-brightgreen.svg)](#testing)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ---
 
 ## What is myloop-lean?
 
-`myloop-lean` replaces monolithic, compiled terminal wrappers with an agile, open-standard architecture:
-- **Zero-Dependency Python Ledger (`scripts/sprint.py`):** An atomic state machine and verification gate managing `sprint-status.yaml`.
-- **8 Consolidated Antigravity Skills (`.agents/skills/`):** Cohesive, single-runbook skills leveraging modern 1M+ token context windows without fragile micro-step snapshot files.
-- **Hierarchical Discipline Rules (`.agents/rules/`):** Non-negotiable engineering standards for strict TDD, architectural spine invariants, and security hygiene.
+`myloop-lean` is an agile, open-standard AI-native SDLC orchestrator inspired by Anthropic's Playbook and Kent Beck's TDD:
+- **6-Stage Closed SDLC Loop:** Plan (`intent.md`) → Design (`spec.md`) → Build (`plan.md`) → Test (anti-cheat verify) → Deploy (code review) → Maintain (incident triage).
+- **Two-Layer Safety:** Soft engineering rules (`.agents/rules/`) paired with deterministic hard CLI hooks (`scripts/sprint.py verify --anti-cheat`).
+- **Zero-Dependency Python Ledger (`scripts/sprint.py`):** An atomic state machine, incident creator, and verification gate managing `sprint-status.yaml`.
+- **Persistent Institutional Memory (`lessons-learned.md`):** Automatically inherits past regressions so future sessions never repeat defects.
 - **Model-Agnostic Portability:** Seamlessly orchestrates across Google Antigravity, OpenHands, Aider, Cline, or local vLLM/Ollama setups running DeepSeek-R1 and Qwen 2.5 Coder.
 
 ---
@@ -25,7 +26,8 @@
 │   ├── rules/                      # Contextual engineering guidelines
 │   │   ├── tdd-discipline.md       # Kent Beck TDD, no AI noise in comments
 │   │   ├── architecture-rules.md   # Architectural invariants & ADRs
-│   │   └── security-hygiene.md     # Secrets, sanitization, safety
+│   │   ├── security-hygiene.md     # Secrets, sanitization, safety
+│   │   └── lessons-learned.md      # Auto-updating institutional memory
 │   └── skills/                     # 8 high-signal lifecycle skills
 │       ├── deep-recon/             # Research & evidence-backed briefs
 │       ├── prd/                    # Product requirements & JTBD
@@ -77,9 +79,19 @@ python3 scripts/sprint.py next
 python3 scripts/sprint.py update 1-2-model-agnostic-dispatch --status in-progress
 ```
 
-### 4. Run Pre-Completion Verification Gate
+### 4. Run Pre-Completion Verification Gate (with Anti-Cheat)
 ```bash
-python3 scripts/sprint.py verify --cmd "python3 -m pytest tests/"
+python3 scripts/sprint.py verify --cmd "python3 -m pytest tests/" --anti-cheat
+```
+
+### 5. Trigger an Incident (Closed-Loop Maintenance)
+```bash
+python3 scripts/sprint.py incident "Checkout API returns 500 on valid token" --tier pro
+```
+
+### 6. Validate Three-Stage Artifact Chain
+```bash
+python3 scripts/sprint.py validate-chain docs/stories/1-1/
 ```
 
 ---
