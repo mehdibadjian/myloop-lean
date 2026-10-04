@@ -120,10 +120,10 @@ def scaffold_project(
         shutil.copytree(src_agents, dst_agents, dirs_exist_ok=True)
         copied.append(str(dst_agents))
 
-    # 2. Copy scripts/ (sprint.py and dispatch.py)
+    # 2. Copy scripts/ (sprint.py, dispatch.py, and scaffold.py)
     dst_scripts = target_dir / "scripts"
     dst_scripts.mkdir(parents=True, exist_ok=True)
-    for script_name in ["sprint.py", "dispatch.py"]:
+    for script_name in ["sprint.py", "dispatch.py", "scaffold.py"]:
         src_script = source_root / "scripts" / script_name
         if src_script.exists():
             shutil.copy2(src_script, dst_scripts / script_name)
@@ -136,7 +136,15 @@ def scaffold_project(
             shutil.copy2(src_file, target_dir / root_file)
             copied.append(str(target_dir / root_file))
 
-    # 4. Generate clean starter sprint-status.yaml if it doesn't exist
+    # 4. Generate clean starter README.md and sprint-status.yaml if they don't exist
+    target_readme = target_dir / "README.md"
+    if not target_readme.exists():
+        target_readme.write_text(
+            STARTER_README.format(project_name=project_name),
+            encoding="utf-8",
+        )
+        copied.append(str(target_readme))
+
     target_ledger = target_dir / "sprint-status.yaml"
     if not target_ledger.exists():
         target_ledger.write_text(
@@ -145,9 +153,11 @@ def scaffold_project(
         )
         copied.append(str(target_ledger))
 
-    # 5. Create starter docs directories
+    # 5. Create starter docs directories with .gitkeep
     for doc_sub in ["stories", "prd", "architecture", "retrospectives"]:
-        (target_dir / "docs" / doc_sub).mkdir(parents=True, exist_ok=True)
+        sub_dir = target_dir / "docs" / doc_sub
+        sub_dir.mkdir(parents=True, exist_ok=True)
+        (sub_dir / ".gitkeep").touch()
 
     # 6. Optional Global Antigravity Installation
     if global_antigravity:
