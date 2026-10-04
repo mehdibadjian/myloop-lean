@@ -19,3 +19,8 @@ This document is the living institutional memory of `myloop-lean`. Every agent s
 - **YAML Comment Preservation:** When modifying `sprint-status.yaml`, never use naive serializers that strip comments or reorder sections. Use targeted line replacement or roundtrip loaders.
 - **Subprocess Shell Injection:** Always use parameter lists (`["git", "status"]`) rather than string interpolation in shells (`f"git status {path}"`).
 - **Secret Hygiene:** Never commit tokens, credentials, or private keys. Always use standard environment variables.
+
+## 4. Multi-Model Dispatch & Harness Invariants
+- **Deterministic Context Compilation:** Always load rule markdown files and skill instructions in sorted lexical order to ensure deterministic prompt payloads across models.
+- **Robust HTTP Handling:** When communicating with OpenAI-compatible endpoints using standard `urllib.request`, always set explicit request timeouts (e.g. 60s) and catch `urllib.error.HTTPError` to inspect the error body.
+

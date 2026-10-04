@@ -81,7 +81,9 @@ class SprintLedger:
 
         current_status = self.get_status(story_key)
         if current_status:
-            allowed = ALLOWED_TRANSITIONS.get(current_status, [])
+            allowed = list(ALLOWED_TRANSITIONS.get(current_status, []))
+            if story_key.startswith("epic-") and current_status == "in-progress" and new_status == "done":
+                allowed.append("done")
             if new_status not in allowed:
                 raise ValueError(
                     f"Invalid status transition: cannot move '{story_key}' from '{current_status}' to '{new_status}'"
