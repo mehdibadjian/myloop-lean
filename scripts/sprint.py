@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""myloop-lean: Deterministic sprint status ledger manager and verification gate."""
+"""myloop-lean: Deterministic sprint status ledger manager, anti-cheat gate, and incident trigger."""
 
 import argparse
 import os
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -112,6 +113,36 @@ class SprintLedger:
         self._load()
         return True
 
+    def set_tier(self, story_key: str, tier: str) -> bool:
+        """Sets execution tier for a story."""
+        tier_idx = self.raw_content.find("execution_tiers:")
+        if tier_idx == -1:
+            self.raw_content += f"\nexecution_tiers:\n  {story_key}: {tier}\n"
+        else:
+            after_tiers = self.raw_content[tier_idx:]
+            next_section = re.search(r"^[a-zA-Z0-9_-]+:", after_tiers[len("execution_tiers:"):], re.MULTILINE)
+            section_len = next_section.start() + len("execution_tiers:") if next_section else len(after_tiers)
+            tiers_content = after_tiers[:section_len]
+
+            key_pattern = re.compile(rf"^([ \t]*{re.escape(story_key)}[ \t]*:[ \t]*)([^\n#]+)(.*)$", re.MULTILINE)
+            match = key_pattern.search(tiers_content)
+            if match:
+                start_in_raw = tier_idx + match.start()
+                end_in_raw = tier_idx + match.end()
+                prefix = match.group(1)
+                comment = match.group(3)
+                new_line = f"{prefix}{tier}{comment}"
+                self.raw_content = self.raw_content[:start_in_raw] + new_line + self.raw_content[end_in_raw:]
+            else:
+                next_nl = self.raw_content.find("\n", tier_idx)
+                ins_pos = next_nl + 1 if next_nl != -1 else len(self.raw_content)
+                entry = f"  {story_key}: {tier}\n"
+                self.raw_content = self.raw_content[:ins_pos] + entry + self.raw_content[ins_pos:]
+
+        self.path.write_text(self.raw_content, encoding="utf-8")
+        self._load()
+        return True
+
     def format_status_board(self) -> str:
         """Renders an ASCII status table."""
         lines = []
@@ -128,8 +159,138 @@ class SprintLedger:
         return "\n".join(lines)
 
 
-def run_verification(test_command: str, work_dir: Path) -> Dict[str, Any]:
-    """Runs tests and captures output and exit code."""
+def is_test_file(path: str) -> bool:
+    """Checks if a file path belongs to a test suite."""
+    name = Path(path).name.lower()
+    return (
+        name.startswith("test_")
+        or name.endswith("_test.py")
+        or name.endswith(".test.ts")
+        or name.endswith(".spec.ts")
+        or name.endswith(".test.js")
+        or name.endswith(".spec.js")
+        or "/tests/" in path
+        or "/test/" in path
+    )
+
+
+def detect_test_tampering(diff_text: str) -> Dict[str, Any]:
+    """Detects deleted or weakened test assertions in a git diff."""
+    lines = diff_text.splitlines()
+    is_current_test = False
+    deleted_assertions = []
+
+    for line in lines:
+        if line.startswith("diff --git "):
+            parts = line.split()
+            current_file = parts[-1] if len(parts) >= 4 else ""
+            is_current_test = is_test_file(current_file)
+            continue
+
+        if is_current_test and line.startswith("-") and not line.startswith("---"):
+            trimmed = line[1:].strip()
+            # Detect deletion of assertion statements or test cases
+            if (
+                trimmed.startswith("assert ")
+                or trimmed.startswith("assert(")
+                or "assert " in trimmed
+                or trimmed.startswith("self.assert")
+                or trimmed.startswith("expect(")
+            ):
+                deleted_assertions.append(trimmed)
+
+    return {
+        "tampered": len(deleted_assertions) > 0,
+        "deleted_assertions": deleted_assertions,
+    }
+
+
+def validate_artifact_chain(story_dir: Path) -> Dict[str, Any]:
+    """Validates presence and non-emptiness of intent.md, spec.md, and plan.md."""
+    expected = ["intent.md", "spec.md", "plan.md"]
+    missing = []
+
+    for filename in expected:
+        f = story_dir / filename
+        if not f.exists() or len(f.read_text(encoding="utf-8").strip()) == 0:
+            missing.append(filename)
+
+    return {
+        "valid": len(missing) == 0,
+        "missing_artifacts": missing,
+    }
+
+
+def create_incident(
+    ledger_path: Path,
+    summary: str,
+    tier: str = "flash",
+    stories_dir: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """Scaffolds an incident intent.md and registers in sprint ledger."""
+    if stories_dir is None:
+        stories_dir = ledger_path.parent / "docs" / "stories"
+
+    incidents_dir = stories_dir / "incidents"
+    incidents_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = int(time.time())
+    key = f"INC-{timestamp}"
+
+    intent_file = incidents_dir / f"{key}-intent.md"
+    content = f"""# {key}: Incident Intent
+
+## Stage 1: Intent
+- **Incident Key:** {key}
+- **Summary:** {summary}
+- **Status:** ready-for-dev
+- **Execution Tier:** {tier}
+
+## Problem Description
+{summary}
+
+## Scope & Target
+- Investigate root cause and write regression test reproducing the failure.
+- Implement minimal fix following strict TDD.
+- Verify zero regressions with anti-cheat verification.
+"""
+    intent_file.write_text(content, encoding="utf-8")
+
+    # Register in ledger
+    ledger = SprintLedger(ledger_path)
+    ledger.update_status(key, "ready-for-dev")
+    ledger.set_tier(key, tier)
+
+    return {
+        "key": key,
+        "intent_file": intent_file,
+        "summary": summary,
+        "tier": tier,
+    }
+
+
+def get_git_diff(work_dir: Path) -> str:
+    """Captures uncommitted or HEAD diff."""
+    try:
+        proc = subprocess.run(
+            ["git", "diff", "HEAD"],
+            cwd=str(work_dir),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+        return proc.stdout
+    except Exception:
+        return ""
+
+
+def run_verification(
+    test_command: str,
+    work_dir: Path,
+    check_anti_cheat: bool = False,
+) -> Dict[str, Any]:
+    """Runs tests, captures exit code, and optionally executes anti-cheat inspection."""
     try:
         proc = subprocess.run(
             test_command,
@@ -140,11 +301,21 @@ def run_verification(test_command: str, work_dir: Path) -> Dict[str, Any]:
             text=True,
             timeout=300,
         )
+        test_passed = proc.returncode == 0
+        anti_cheat_res = None
+
+        if check_anti_cheat:
+            diff_text = get_git_diff(work_dir)
+            anti_cheat_res = detect_test_tampering(diff_text)
+            if anti_cheat_res["tampered"]:
+                test_passed = False
+
         return {
-            "passed": proc.returncode == 0,
+            "passed": test_passed,
             "test_exit_code": proc.returncode,
             "stdout": proc.stdout,
             "stderr": proc.stderr,
+            "anti_cheat": anti_cheat_res,
         }
     except Exception as e:
         return {
@@ -152,6 +323,7 @@ def run_verification(test_command: str, work_dir: Path) -> Dict[str, Any]:
             "test_exit_code": -1,
             "stdout": "",
             "stderr": str(e),
+            "anti_cheat": None,
         }
 
 
@@ -182,7 +354,7 @@ def check_git_status(work_dir: Path) -> Dict[str, Any]:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="myloop-lean sprint ledger manager")
+    parser = argparse.ArgumentParser(description="myloop-lean sprint ledger manager & verification gate")
     parser.add_argument(
         "--ledger",
         default="sprint-status.yaml",
@@ -204,6 +376,16 @@ def main():
     # verify
     verify_p = subparsers.add_parser("verify", help="Run verification gate")
     verify_p.add_argument("--cmd", default="python3 -m pytest tests/", help="Test command to run")
+    verify_p.add_argument("--anti-cheat", action="store_true", help="Enable anti-cheat test tampering detection")
+
+    # incident
+    inc_p = subparsers.add_parser("incident", help="Scaffold incident intent.md and register in sprint ledger")
+    inc_p.add_argument("summary", help="Description of the incident or bug")
+    inc_p.add_argument("--tier", default="flash", choices=["flash", "pro", "cheap", "standard", "frontier"])
+
+    # validate-chain
+    chain_p = subparsers.add_parser("validate-chain", help="Validate three-stage artifact chain for a story")
+    chain_p.add_argument("story_dir", help="Path to story directory containing intent.md, spec.md, plan.md")
 
     args = parser.parse_args()
 
@@ -236,8 +418,14 @@ def main():
     elif args.command == "verify":
         work_dir = Path.cwd()
         print(f"Running verification with command: {args.cmd}")
-        res = run_verification(args.cmd, work_dir)
+        res = run_verification(args.cmd, work_dir, check_anti_cheat=args.anti_cheat)
         git_res = check_git_status(work_dir)
+
+        if res["anti_cheat"] and res["anti_cheat"]["tampered"]:
+            print("VERIFICATION FAILED: Anti-cheat detected test tampering!", file=sys.stderr)
+            for d in res["anti_cheat"]["deleted_assertions"]:
+                print(f"  Removed assertion: {d}", file=sys.stderr)
+            sys.exit(1)
 
         if not res["passed"]:
             print("VERIFICATION FAILED: Tests exited non-zero.", file=sys.stderr)
@@ -253,6 +441,21 @@ def main():
         else:
             print("Git working tree is clean.")
         print("VERIFICATION PASSED.")
+
+    elif args.command == "incident":
+        inc = create_incident(ledger_path, args.summary, tier=args.tier)
+        print(f"Incident created: {inc['key']}")
+        print(f"Intent file: {inc['intent_file']}")
+        print(f"Registered in sprint ledger with tier '{inc['tier']}'")
+
+    elif args.command == "validate-chain":
+        story_dir = Path(args.story_dir)
+        res = validate_artifact_chain(story_dir)
+        if res["valid"]:
+            print(f"Artifact chain valid for: {story_dir}")
+        else:
+            print(f"Artifact chain incomplete! Missing: {res['missing_artifacts']}", file=sys.stderr)
+            sys.exit(1)
 
 
 if __name__ == "__main__":

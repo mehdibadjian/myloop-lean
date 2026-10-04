@@ -24,6 +24,7 @@ EXPECTED_RULES = [
     "tdd-discipline.md",
     "architecture-rules.md",
     "security-hygiene.md",
+    "lessons-learned.md",
 ]
 
 
